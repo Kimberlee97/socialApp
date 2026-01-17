@@ -33,6 +33,7 @@ export default function RootLayout() {
 }
 */
 
+/*
 import { useEffect, useState } from 'react'; 
 import { ActivityIndicator, View } from 'react-native'; 
 import { Stack } from 'expo-router';
@@ -76,5 +77,40 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
+  );
+}
+  */
+
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { initDB } from '../src/database/init'; 
+
+export default function RootLayout() {
+  
+  useEffect(() => {
+    initDB().then(() => {
+      console.log("Database initialized successfully");
+    }).catch((err) => {
+      console.error("Database failed to load:", err);
+    });
+  }, []);
+
+  return (
+    <Stack>
+      <Stack.Screen 
+        name="index" 
+        options={{ headerShown: false }} 
+      />
+      
+      <Stack.Screen 
+        name="signup" 
+        options={{ title: 'Create Account' }} 
+      />
+
+      <Stack.Screen 
+        name="(tabs)" 
+        options={{ headerShown: false }} 
+      />
+    </Stack>
   );
 }

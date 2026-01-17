@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import Feed from '../../src/screens/Feed/Feed';
 
-export default function HomeScreen() {
+export default function FeedScreen() {
   return <Feed />
 }
 

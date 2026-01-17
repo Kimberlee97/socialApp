@@ -1,0 +1,12 @@
+{
+  "users": [
+    {
+      "username": "AdminUser",
+      "pin": "0000"
+    },
+    {
+      "username": "Guest",
+      "pin": "1234"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+/*
 import { getDB } from './connection';
 import { Post } from '../types/posts';
 import seedData from '../../assets/data/seed.json'; 
@@ -53,5 +54,74 @@ export async function initDB() {
     console.log("Database Seeded Instantly!");
   } else {
     console.log("Database ready.");
+  }
+}
+*/
+
+import { getDB } from './connection';
+import seedUsers from '../../assets/data/users.json';
+import seedPosts from '../../assets/data/seed.json'; 
+
+export async function initDB() {
+  const db = await getDB();
+
+  // 1. Create Tables 
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      pin TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      author TEXT NOT NULL,
+      image TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 2. Load Users from JSON 
+  console.log("Checking users from users.json...");
+  
+  for (const user of seedUsers.users) {
+    // Check if this specific username already exists
+    const existing = await db.getAllAsync(
+      'SELECT * FROM users WHERE lower(username) = lower(?)', 
+      [user.username]
+    );
+
+    if (existing.length === 0) {
+      console.log(`Adding missing user: ${user.username}`);
+      await db.runAsync(
+        'INSERT INTO users (username, pin) VALUES (?, ?)',
+        [user.username, user.pin]
+      );
+    }
+  }
+
+  // 3. Seed Posts (Only if table is totally empty)
+  const postCount = await db.getAllAsync<{ c: number }>('SELECT COUNT(*) as c FROM posts');
+  if (postCount[0].c === 0) {
+    console.log("Seeding Posts...");
+    await db.withTransactionAsync(async () => {
+      const batchSize = 50; 
+      for (let i = 0; i < seedPosts.posts.length; i += batchSize) {
+        const batch = seedPosts.posts.slice(i, i + batchSize);
+        const placeholders = batch.map(() => '(?, ?, ?, ?)').join(',');
+        const values = batch.flatMap(post => [
+          post.title, post.description || '', post.author, post.image || null
+        ]);
+        await db.runAsync(
+          `INSERT INTO posts (title, description, author, image) VALUES ${placeholders}`,
+          values
+        );
+      }
+    });
   }
 }
