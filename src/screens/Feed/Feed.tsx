@@ -48,14 +48,18 @@ const styles = StyleSheet.create({
 
 
 import React, { useState, useCallback } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import PostItem from '../../../components/posts/PostItem';
 import { PostRepositorySql } from '../../database/PostRepositorySql';
+import { useAuth } from '../../contexts/AuthContext'; 
 
 export default function Feed() {
   const router = useRouter();
+  
+  // ✅ Get the logout function from Context
+  const { logout } = useAuth();
+
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,18 +80,22 @@ export default function Feed() {
     }
   }
 
-  const handleLogout = () => router.replace('/login');
+  // ✅ UPDATED LOGOUT FUNCTION
+  const handleLogout = async () => {
+    // 1. Tell the Brain to clear the user
+    await logout();
+    // 2. The Context will AUTOMATICALLY redirect you to /login
+    // You don't need router.replace() here anymore!
+  };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" /></View>;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Clean Header */}
+      {/* Header */}
       <View style={styles.header}>
-        {/* Title (Left) */}
         <Text style={styles.logoText}>SocialApp</Text>
 
-        {/* Logout (Right) */}
         <TouchableOpacity onPress={handleLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
@@ -105,10 +113,8 @@ export default function Feed() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' }, // Pure white background
+  container: { flex: 1, backgroundColor: '#fff' }, 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  
-  // Instagram-style Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -116,17 +122,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#dbdbdb', // Subtle gray line
-    marginTop: Platform.OS === 'android' ? 30 : 0, // Fix for Android status bar
+    borderBottomColor: '#dbdbdb', 
+    marginTop: Platform.OS === 'android' ? 30 : 0, 
   },
   logoText: {
     fontSize: 24,
-    fontWeight: 'bold', // Or 'fontFamily' if you import a cursive font
+    fontWeight: 'bold', 
     color: '#000',
   },
   logoutText: {
     fontSize: 15,
-    color: '#0095F6', // Instagram Blue for action links
+    color: '#0095F6', 
     fontWeight: '600',
   },
 });

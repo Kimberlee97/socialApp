@@ -1,19 +1,33 @@
-import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+import usersData from '../../assets/data/users.json'; 
+
+const SESSION_KEY = 'user_session';
 
 export const AuthService = {
-  async authenticate(): Promise<boolean> {
-    try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!hasHardware || !isEnrolled) return false;
+  
+  async login(username: string, pin: string) {
+    const user = usersData.users.find(
+      (u) => u.username.toLowerCase() === username.toLowerCase() && u.pin === pin
+    );
 
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Unlock App',
-        fallbackLabel: 'Use PIN',
-      });
-      return result.success;
-    } catch (error) {
-      return false; 
+    if (user) {
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(user));
+      return user;
     }
+    return null;
+  },
+
+  async getSession() {
+    try {
+      const jsonValue = await SecureStore.getItemAsync(SESSION_KEY);
+      return jsonValue != null ? JSON.parse(jsonValue) : null;
+    } catch (e) {
+      console.error("Secure Store Error", e);
+      return null;
+    }
+  },
+
+  async logout() {
+    await SecureStore.deleteItemAsync(SESSION_KEY);
   }
 };
