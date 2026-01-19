@@ -1,35 +1,80 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { Image } from 'expo-image';
-import { styles } from './PostItemStyle'; 
-import { Post } from '../../src/types/posts'; 
+import { View, Text, StyleSheet, Image } from 'react-native'; // ✅ Import Image
+import { Post } from '../../src/types/posts';
 
-export default function PostItem({ post }: { post: Post }) {
-  const formattedDate = new Date(post.created_at).toLocaleDateString();
+interface PostItemProps {
+  post: Post;
+}
 
+export default function PostItem({ post }: PostItemProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.author}>{post.author}</Text>
-        <Text style={styles.date}>{formattedDate}</Text>
+        <View style={styles.avatarPlaceholder} />
+        <View>
+          <Text style={styles.author}>{post.author}</Text>
+        </View>
       </View>
 
-      {post.image ? (
-        <Image
-          style={styles.image}
-          source={{ uri: post.image }}
-          contentFit="cover"
-          transition={500}
-          cachePolicy="memory-disk"
+      <Text style={styles.title}>{post.title}</Text>
+      <Text style={styles.description}>{post.description}</Text>
+
+      {post.image && (
+        <Image 
+          source={{ uri: post.image }} 
+          style={styles.postImage} 
         />
-      ) : null}
-
-      <View style={styles.content}>
-        <Text style={styles.title}>{post.title}</Text>
-        {post.description ? (
-          <Text style={styles.description}>{post.description}</Text>
-        ) : null}
-      </View>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    marginVertical: 8,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eee',
+    marginRight: 10,
+  },
+  author: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+    color: '#333',
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 8,
+    resizeMode: 'cover',
+  },
+});

@@ -46,43 +46,50 @@ const styles = StyleSheet.create({
 });
 */
 
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router'; 
+
+import React, { useState, useCallback } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
 import PostItem from '../../../components/posts/PostItem';
-import { getDB } from '../../database/connection';
+import { PostRepositorySql } from '../../database/PostRepositorySql';
 
 export default function Feed() {
-  const router = useRouter(); 
+  const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadPosts();
+    }, [])
+  );
 
   async function loadPosts() {
-    const db = await getDB();
-    const result = await db.getAllAsync('SELECT * FROM posts ORDER BY id DESC');
-    setPosts(result);
-    setLoading(false);
+    try {
+      const result = await PostRepositorySql.getAll();
+      setPosts(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const handleLogout = () => {
-    console.log("Logout button pressed.");
-    router.replace('/login'); 
-  };
+  const handleLogout = () => router.replace('/login');
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator /></View>;
-  }
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" /></View>;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>My Feed</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
+    <SafeAreaView style={styles.container}>
+      {/* Clean Header */}
+      <View style={styles.header}>
+        {/* Title (Left) */}
+        <Text style={styles.logoText}>SocialApp</Text>
+
+        {/* Logout (Right) */}
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
 
@@ -90,45 +97,36 @@ export default function Feed() {
         data={posts}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => <PostItem post={item} />}
-        
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={true}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#fff' }, // Pure white background
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  headerContainer: {
+  // Instagram-style Header
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 60, 
-    paddingBottom: 10,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#dbdbdb', // Subtle gray line
+    marginTop: Platform.OS === 'android' ? 30 : 0, // Fix for Android status bar
   },
-  headerTitle: {
+  logoText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  logoutButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#ff4d4d', 
-    borderRadius: 8,
+    fontWeight: 'bold', // Or 'fontFamily' if you import a cursive font
+    color: '#000',
   },
   logoutText: {
-    color: 'white',
+    fontSize: 15,
+    color: '#0095F6', // Instagram Blue for action links
     fontWeight: '600',
-    fontSize: 14,
   },
 });

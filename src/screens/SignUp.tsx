@@ -59,7 +59,7 @@ export default function SignUp() {
           ]
         );
       } else {
-        // No biometrics available, go straight to feed
+        // If no biometrics available, go straight to feed
         router.replace('/(tabs)');
       }
       
@@ -102,7 +102,6 @@ export default function SignUp() {
           <Text style={styles.btnText}>Sign Up & Login</Text>
         </TouchableOpacity>
 
-        {/* Back Button */}
         <TouchableOpacity onPress={() => router.back()} style={styles.linkBtn}>
           <Text style={styles.linkText}>Back to Login</Text>
         </TouchableOpacity>
