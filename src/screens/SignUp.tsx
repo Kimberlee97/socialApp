@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView 
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication'; // ✅ Added
 import { UserService } from '../services/UserService';
 
 export default function SignUp() {
@@ -13,22 +14,57 @@ export default function SignUp() {
   const [pin, setPin] = useState('');
 
   const handleSignUp = async () => {
-
+    // 1. Basic Validation
     if (!username || pin.length !== 4) {
       return Alert.alert("Error", "Enter a username and a 4-digit PIN.");
     }
 
-
+    // 2. Check if Username exists locally
     const exists = await UserService.usernameExists(username);
     if (exists) {
       return Alert.alert("Taken", "That username is already used. Try another.");
     }
 
     try {
+      // 3. Create User in SQLite
       await UserService.createUser(username, pin);
-      router.replace('/(tabs)');
+
+      // 4. Biometric Setup (Preferred Feature)
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (hasHardware && isEnrolled) {
+        Alert.alert(
+          "Enable Biometrics",
+          "Would you like to use Face ID or Fingerprint for faster login next time?",
+          [
+            { 
+              text: "No", 
+              onPress: () => router.replace('/(tabs)') 
+            },
+            { 
+              text: "Yes, Enable", 
+              onPress: async () => {
+                const auth = await LocalAuthentication.authenticateAsync({
+                  promptMessage: 'Confirm Biometrics to Enable',
+                  fallbackLabel: 'Use PIN',
+                });
+
+                if (auth.success) {
+                  Alert.alert("Success", "Biometrics enabled for this device!");
+                }
+                router.replace('/(tabs)');
+              }
+            }
+          ]
+        );
+      } else {
+        // No biometrics available, go straight to feed
+        router.replace('/(tabs)');
+      }
       
     } catch (error) {
+      console.error(error);
       Alert.alert("Error", "Could not create account.");
     }
   };
@@ -44,7 +80,7 @@ export default function SignUp() {
 
         <Text style={styles.label}>Choose Username</Text>
         <TextInput 
-          placeholder="NewUser123" 
+          placeholder="Kimberlee" 
           value={username} 
           onChangeText={setUsername} 
           autoCapitalize="none"

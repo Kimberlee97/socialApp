@@ -21,10 +21,19 @@ export const UserService = {
     return result.length > 0;
   },
 
+  async isLocalUser(username: string): Promise<boolean> {
+    const db = await getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM users WHERE lower(username) = lower(?) AND is_local = 1 LIMIT 1', 
+      [username]
+    );
+    return result.length > 0;
+  },
+
   async createUser(username: string, pin: string) {
     const db = await getDB();
     await db.runAsync(
-      'INSERT INTO users (username, pin) VALUES (?, ?)',
+      'INSERT INTO users (username, pin, is_local) VALUES (?, ?, 1)', 
       [username, pin]
     );
   }

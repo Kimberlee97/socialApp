@@ -2,11 +2,18 @@
   "users": [
     {
       "username": "AdminUser",
-      "pin": "0000"
+      "pin": "0000",
+      "is_local": 1
     },
     {
       "username": "Guest",
-      "pin": "1234"
+      "pin": "1234",
+      "is_local": 0
+    },
+    {
+      "username": "Kimberlee",
+      "pin": "1111",
+      "is_local": 0
     }
   ]
 }

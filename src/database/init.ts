@@ -65,13 +65,12 @@ import seedPosts from '../../assets/data/seed.json';
 export async function initDB() {
   const db = await getDB();
 
-  // 1. Create Tables 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL,
-      pin TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      username TEXT UNIQUE,
+      pin TEXT,
+      is_local INTEGER DEFAULT 0 -- 0 for JSON users, 1 for Sign Up users
     );
   `);
 
@@ -86,11 +85,9 @@ export async function initDB() {
     );
   `);
 
-  // 2. Load Users from JSON 
   console.log("Checking users from users.json...");
   
   for (const user of seedUsers.users) {
-    // Check if this specific username already exists
     const existing = await db.getAllAsync(
       'SELECT * FROM users WHERE lower(username) = lower(?)', 
       [user.username]
@@ -105,7 +102,6 @@ export async function initDB() {
     }
   }
 
-  // 3. Seed Posts (Only if table is totally empty)
   const postCount = await db.getAllAsync<{ c: number }>('SELECT COUNT(*) as c FROM posts');
   if (postCount[0].c === 0) {
     console.log("Seeding Posts...");
