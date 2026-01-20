@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { PostRepositorySql } from '../database/PostRepositorySql';
-import { ImageService } from '../services/ImageService';
+import { PostRepositorySql } from '../../database/PostRepositorySql';
+import { ImageService } from '../../services/ImageService';
+import { styles } from '././CreateStyles'; 
 
 export default function CreatePostScreen() {
   const router = useRouter();
@@ -39,7 +40,6 @@ export default function CreatePostScreen() {
         image: finalUri 
       });
 
-      // Reset & Navigate
       setTitle(''); setAuthor(''); setDescription(''); setImageUri(null);
       router.push('/(tabs)'); 
     } catch (e) {
@@ -63,20 +63,8 @@ export default function CreatePostScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 1. Image Picker (The "+" Box) */}
-        <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.plusIcon}>+</Text>
-              <Text style={styles.addPhotoText}>Add Photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
         <View style={styles.formContainer}>
-          {/* 2. Title */}
+          {/* 1. Title */}
           <Text style={styles.label}>Title</Text>
           <TextInput 
             style={styles.input} 
@@ -87,7 +75,7 @@ export default function CreatePostScreen() {
             maxLength={25}
           />
 
-          {/* 3. Author */}
+          {/* 2. Author */}
           <Text style={styles.label}>Author</Text>
           <TextInput 
             style={styles.input} 
@@ -97,7 +85,7 @@ export default function CreatePostScreen() {
             onChangeText={setAuthor} 
           />
 
-          {/* 4. Description */}
+          {/* 3. Description */}
           <Text style={styles.label}>Description</Text>
           <TextInput 
             style={[styles.input, styles.textArea]} 
@@ -107,56 +95,22 @@ export default function CreatePostScreen() {
             onChangeText={setDescription} 
             multiline 
           />
+
+          {/* 4. Image Picker (Moved to Bottom) */}
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+            ) : (
+              <View style={styles.placeholderContainer}>
+                <Text style={styles.plusIcon}>+</Text>
+                <Text style={styles.addPhotoText}>Add Photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
         </View>
 
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1 },
-  
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#efefef',
-    marginTop: 10
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
-  postButtonText: { fontSize: 16, fontWeight: '600', color: '#0095F6' }, 
-  disabledText: { color: '#b3dffc' },
-
-  imageContainer: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#fafafa',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#efefef',
-  },
-  imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  placeholderContainer: { alignItems: 'center' },
-  plusIcon: { fontSize: 50, color: '#ccc', fontWeight: '300' },
-  addPhotoText: { color: '#999', fontSize: 14, marginTop: 5 },
-
-  formContainer: { padding: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#262626', marginTop: 15, marginBottom: 8 },
-  input: {
-    fontSize: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#dbdbdb',
-    paddingVertical: 8,
-    color: '#000',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top', 
-  },
-});
