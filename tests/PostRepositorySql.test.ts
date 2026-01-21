@@ -1,7 +1,12 @@
 import { PostRepositorySql } from '../src/database/PostRepositorySql';
 import { getDB } from '../src/database/connection';
 
-// 1. Mock the connection file
+// ------------------------------------------------------------------
+// MOCK SETUP
+// ------------------------------------------------------------------
+// We mock the database connection to prevent running actual SQL queries
+// during unit tests. This ensures tests are fast, deterministic, and
+// do not require a running SQLite environment.
 jest.mock('../src/database/connection', () => ({
   getDB: jest.fn(),
 }));
@@ -10,43 +15,58 @@ describe('PostRepositorySql', () => {
   let mockRunAsync: jest.Mock;
   let mockGetAllAsync: jest.Mock;
 
+  // ----------------------------------------------------------------
+  // TEST LIFECYCLE
+  // ----------------------------------------------------------------
   beforeEach(() => {
-    // Reset mocks before each test
+    // Reset mocks before each individual test to ensure a clean state.
+    // This prevents data or call counts from one test leaking into another.
     mockRunAsync = jest.fn();
     mockGetAllAsync = jest.fn();
 
-    // 🚨 THE FIX IS HERE: "Double Cast"
-    // We convert it to 'unknown' first, then to 'jest.Mock'
+    // Configure the mock database object.
+    // When the repository calls getDB(), it receives this object containing
+    // our spied 'runAsync' and 'getAllAsync' methods.
     (getDB as unknown as jest.Mock).mockResolvedValue({
       runAsync: mockRunAsync,
       getAllAsync: mockGetAllAsync,
     });
   });
 
+  // ----------------------------------------------------------------
+  // UNIT TEST: READ OPERATION
+  // ----------------------------------------------------------------
   test('getAll() should return a list of posts', async () => {
-    // Arrange
+    // ARRANGE: Prepare the data we expect the database to return.
     const fakePosts = [{ id: 1, title: 'Test Post', author: 'Me' }];
     mockGetAllAsync.mockResolvedValue(fakePosts);
 
-    // Act
+    // ACT: Call the repository method with specific pagination params.
     const result = await PostRepositorySql.getAll(10, 0);
 
-    // Assert
+    // ASSERT: Verify two things:
+    // 1. The function returns exactly what the database gave it.
+    // 2. The database was called with the correct SQL query and parameters.
     expect(result).toEqual(fakePosts);
     expect(mockGetAllAsync).toHaveBeenCalledWith(
       expect.stringContaining('SELECT * FROM posts'), 
-      [10, 0]
+      [10, 0] // Limit 10, Offset 0
     );
   });
 
+  // ----------------------------------------------------------------
+  // UNIT TEST: WRITE OPERATION
+  // ----------------------------------------------------------------
   test('create() should insert a post with correct values', async () => {
-    // Arrange
+    // ARRANGE: Define the new post data to be inserted.
     const newPost = { title: 'New', author: 'Dave', description: 'Desc', image: null };
 
-    // Act
+    // ACT: Call the create method.
     await PostRepositorySql.create(newPost);
 
-    // Assert
+    // ASSERT: Verify the persistence layer was invoked correctly.
+    // We check that 'INSERT INTO' was called and that the parameters
+    // match the values in our 'newPost' object.
     expect(mockRunAsync).toHaveBeenCalledTimes(1);
     expect(mockRunAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO posts'),
@@ -54,9 +74,15 @@ describe('PostRepositorySql', () => {
     );
   });
 
+  // ----------------------------------------------------------------
+  // INTEGRATION TEST: PAGINATION LOGIC (LIMIT/OFFSET)
+  // ----------------------------------------------------------------
+  // This test simulates a user scrolling through an entire feed.
+  // It verifies that the repository's 'getAll' method correctly handles
+  // offsets to retrieve every single record without duplicates or gaps.
   test('Pagination Integration: Should load ALL posts exactly once', async () => {
-    // 1. ARRANGE: Create a fake DB with 55 posts (IDs 1 to 55)
-    // We create them in reverse order (55 down to 1) to mimic "ORDER BY id DESC"
+    // 1. ARRANGE: Create a large dataset (55 posts).
+    // The feed uses 'ORDER BY id DESC', so we generate IDs 55 down to 1.
     const totalPosts = 55;
     const pageSize = 20;
     const allFakePosts = Array.from({ length: totalPosts }, (_, i) => ({
@@ -65,17 +91,17 @@ describe('PostRepositorySql', () => {
       author: 'Tester'
     }));
 
-    // Mock the db.getAllAsync function to simulate SQL LIMIT/OFFSET
+    // Mock the database behavior to act like a real SQL engine.
+    // Instead of returning a static array, it dynamically slices the data
+    // based on the LIMIT (params[0]) and OFFSET (params[1]) it receives.
     mockGetAllAsync.mockImplementation(async (query, params) => {
-      // params[0] is LIMIT, params[1] is OFFSET
       const limit = params[0];
       const offset = params[1];
-      
-      // Simulate SQL: Return a slice of the array
       return allFakePosts.slice(offset, offset + limit);
     });
 
-    // 2. ACT: Loop until we have fetched everything
+    // 2. ACT: Simulate the Infinite Scroll Loop.
+    // We keep calling 'getAll' and increasing the offset until no data remains.
     const fetchedPosts: any[] = [];
     let offset = 0;
     let keepFetching = true;
@@ -85,61 +111,28 @@ describe('PostRepositorySql', () => {
       
       if (batch.length > 0) {
         fetchedPosts.push(...batch);
-        offset += batch.length; // Move the cursor forward
+        offset += batch.length; // Advance the cursor by the number of items received
       } else {
-        keepFetching = false; // Stop when DB returns empty
+        keepFetching = false; // Database returned empty, end of feed
       }
     }
 
-    // 3. ASSERT: Did we get exactly 55 posts?
+    // 3. ASSERT: Mathematical Proof of Correctness.
+    // If the pagination logic is correct, the length of 'fetchedPosts'
+    // MUST equal the total number of records in the fake DB.
     expect(fetchedPosts.length).toBe(totalPosts);
     
-    // Check the first and last ID to ensure order is correct
-    expect(fetchedPosts[0].id).toBe(55); // Newest
-    expect(fetchedPosts[54].id).toBe(1); // Oldest
+    // Validate order: The first item fetched should be the newest (ID 55),
+    // and the last item fetched should be the oldest (ID 1).
+    expect(fetchedPosts[0].id).toBe(55); 
+    expect(fetchedPosts[54].id).toBe(1); 
     
-    // Check that we made exactly 3 calls (20 + 20 + 15 items)
-    // Call 1 (Offset 0), Call 2 (Offset 20), Call 3 (Offset 40), Call 4 (Offset 55 -> Empty)
+    // Verify Efficiency:
+    // With 55 items and page size 20, we expect exactly 4 calls:
+    // Call 1: Offset 0 (Gets 20)
+    // Call 2: Offset 20 (Gets 20)
+    // Call 3: Offset 40 (Gets 15)
+    // Call 4: Offset 55 (Gets 0 -> Stops loop)
     expect(mockGetAllAsync).toHaveBeenCalledTimes(4);
-  });
-
-  test('Pagination Loop: Should eventually load ALL posts', async () => {
-    // 1. ARRANGE: Create 65 fake posts
-    const totalPosts = 65;
-    const pageSize = 20;
-    const allFakePosts = Array.from({ length: totalPosts }, (_, i) => ({
-      id: i, title: `Post ${i}`, author: 'Test'
-    }));
-
-    // Mock logic: return slice of array based on limit/offset
-    mockGetAllAsync.mockImplementation(async (sql, params) => {
-      // Handle the "COUNT" query
-      if (sql.includes('COUNT')) return [{ c: totalPosts }]; 
-      
-      const limit = params[0];
-      const offset = params[1];
-      return allFakePosts.slice(offset, offset + limit);
-    });
-
-    // 2. ACT: Simulate scrolling
-    let loadedPosts: any[] = [];
-    let currentOffset = 0;
-    let keepLoading = true;
-
-    while (keepLoading) {
-      const batch = await PostRepositorySql.getAll(pageSize, currentOffset);
-      
-      if (batch.length === 0) {
-        keepLoading = false;
-      } else {
-        loadedPosts = [...loadedPosts, ...batch];
-        currentOffset += batch.length;
-      }
-    }
-
-    // 3. ASSERT
-    expect(loadedPosts.length).toBe(totalPosts); // Must match exactly
-    expect(loadedPosts[0]).toEqual(allFakePosts[0]); // First one correct
-    expect(loadedPosts[64]).toEqual(allFakePosts[64]); // Last one correct
   });
 });

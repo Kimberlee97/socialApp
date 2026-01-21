@@ -8,7 +8,7 @@ The application follows an N-Layered Architecture to ensure separation of concer
 
 ## TECH STACK
 
-- **Framework**: React Native (via Expo SDK 52)
+- **Framework**: React Native 0.81 (via Expo SDK 54)
 - **Language**: TypeScript
 - **Database**: SQLite (using expo-sqlite)
 - **Navigation**: Expo Router
@@ -71,16 +71,18 @@ npx expo start
 The application comes pre-seeded with test accounts defined in `assets/data/users.json`. These accounts are designed to simulate different user origins to test the security constraints of Biometric Authentication.
 
 #### "Local" Users
+
 These simulate users who signed up on this specific device.
 
-- **Allowed**: Biometric Login (Face ID).
-- **Example**: AdminUser (PIN: 0000), Johnny (PIN: 0000).
+- **Allowed**: Biometric Login (Face ID) after logging in with their PIN at least once.
+- **Example**: AdminUser (PIN: 0000)
 
 #### "Non-Local" Users
+
 These simulate users who created their account on a different device (e.g., a web portal or another phone) and are now logging in here for the first time.
 
-- **Restricted**: Biometric Login is disabled for security reasons until they manually authenticate at least once.
-- **Example**: Guest (PIN: 1234), John (PIN: 1111).
+- **Allowed**: PIN Login.
+- **Restricted**: Biometric Login is disabled for security reasons.
 
 ### Unit & Integration Testing
 
@@ -100,37 +102,38 @@ The test suite (`src/database/tests/PostRepositorySql.test.ts`) covers the follo
 
 ## ARCHITECTURAL & DESIGN DECISIONS
 
-### Database Choice: SQLite
+### Database Choice: SQLite for Performance & Future Scalability
 
-**Justification**: SQLite was chosen as the persistence layer because it provides a robust, relational database engine that runs entirely on the device.
+**Justification**: The decision to use SQLite was driven by the need for immediate, high-performance local user experience while preparing the application for future scaling.
 
-- **Offline Capability**: Unlike a REST API or Firebase, SQLite allows the app to function perfectly without an internet connection.
-- **Data Integrity**: It enforces structured data schemas, ensuring reliability as the application scales.
-- **Performance**: For a read-heavy application like a Social Feed, SQLite offers sub-millisecond query times, which is superior to reading from flat JSON files or AsyncStorage.
+- **Local Performance & Smoothness**: SQLite offers sub-millisecond query times, ensuring that the application remains buttery smooth and responsive even when handling thousands of posts. This prioritizes the immediate user experience by removing network latency from the critical rendering path.
+- **Scalability Pathway**: By using a structured SQL engine locally, we enforce data integrity and schemas that mirror production-grade server databases (like PostgreSQL). This ensures that when the application scales to a hosted database, the data models remain consistent.
 
-### Security & Authentication Strategy
+### N-Layered Architecture for Multi-Device Scalability
 
-The application implements a dual-layer authentication system designed to balance security with user convenience.
+The application implements a strict N-Layered Architecture (Presentation, Service, Repository). This pattern was chosen specifically to ensure scalability as the application grows from a single-device demo to a multi-user, multi-device platform.
 
-- **PIN-Based Security**: A 4-digit PIN is used as the primary credential. This was chosen over complex passwords for the mobile context, reducing friction while maintaining adequate security for a local-first application.
-- **Biometric Auto-Login**: Biometric authentication (FaceID/TouchID) is implemented as a convenience layer on top of the PIN. It allows for seamless "auto-login" upon app launch but strictly serves as a shortcut; the underlying cryptographic validation still relies on the secure token generation linked to the user's initial authentication.
-- **Database Security**: To prevent SQL injection attacks, all database operations utilize parameterized queries (prepared statements) via the expo-sqlite API. This ensures that user input—such as post titles or search queries—is never executed as raw SQL code.
+- **Decoupled Data Source**: The Repository Layer abstracts the underlying data source. Currently, it connects to a local SQLite database. However, because the UI and Service layers are agnostic to the data source, we can swap the SQLite implementation for a REST API or GraphQL client in the future without refactoring the frontend.
+- **Separation of Concerns**: This structure allows different teams to work on UI logic and Business logic simultaneously, essential for scaling development velocity.
 
-### N-Layered Architecture
+### Security & Authentication Rationale
 
-The application is structured into distinct layers to decouple the UI from data logic:
+The security strategy allows for a frictionless local user experience while enforcing strict constraints on account ownership and biometrics.
 
-- **Presentation Layer** (`screens/`): React components responsible solely for rendering UI and handling user interaction.
-- **Service Layer** (`services/`): Handles business logic (e.g., ImageService for file system operations, AuthService for session management, UserService for data sanitation).
-- **Repository Layer** (`database/`): Abstracts direct SQL queries, allowing the data source to be swapped without affecting the UI.
+- **PIN vs. Complex Passwords**: To ensure a smooth local experience, we utilize a 4-digit PIN rather than complex alphanumeric passwords. This reduces friction for frequent access while maintaining adequate security for a local-first environment.
+
+#### The "Chain of Trust" (Biometric Logic):
+
+- **PIN-First Requirement**: Users are required to authenticate successfully with their PIN at least once on a specific device to establish a "Chain of Trust."
+- **Local vs. Non-Local Restrictions**: To prevent unauthorized access, accounts identified as "Non-Local" (simulated as created on a different device) are blocked from using biometric login initially. This ensures that a compromised account cannot be accessed via biometrics on a new device until the owner manually verifies their identity with the PIN.
+- **Data Security**: To protect the integrity of the data, all database operations utilize parameterized queries (prepared statements) via the expo-sqlite API, preventing SQL injection attacks regardless of user input.
 
 ### Performance & Pagination
 
-To ensure a smooth user experience with large datasets (thousands of posts), "Select All" queries were rejected in favor of an Infinite Scroll pattern.
+To ensure the application scales to handle datasets of unlimited size (e.g., thousands of posts), we prioritized an Infinite Scroll pattern over "Select All" queries.
 
-- **Database Level**: Queries use `LIMIT` and `OFFSET` to fetch data in small batches (Page Size: 20), minimizing memory usage.
-- **UI Level**: The FlatList is optimized with `initialNumToRender`, `maxToRenderPerBatch`, `windowSize`, and `removeClippedSubviews`.
-- **Memoization**: The PostItem component is wrapped in `React.memo` to prevent unnecessary re-renders of off-screen or unchanged items during scrolling.
+- **Database Level**: Queries strictly use `LIMIT` and `OFFSET` to fetch data in small, manageable batches (Page Size: 20), ensuring memory usage remains constant regardless of total database size.
+- **UI Optimization**: The Feed utilizes `React.memo` and `removeClippedSubviews` to ensure that off-screen components do not consume resources, maintaining 60fps scrolling performance.
 
 ### Image Handling
 
@@ -149,5 +152,6 @@ The application uses a "Local-First" architecture, running entirely on the user'
 
 The codebase utilizes the Repository Pattern to decouple data access from the UI. While the current implementation uses SQLite for offline capability, this abstraction layer allows for a future migration to a cloud-based backend (e.g., REST API or Firebase) without requiring changes to the frontend or business logic layers.
 
-### Known Issues
-* **iOS Smart Punctuation:** On the iOS Simulator, double-tapping the spacebar may auto-insert a period (`.`). If Login fails, please check that no accidental periods were added to the username.
+## KNOWN ISSUES
+
+- **iOS Smart Punctuation**: On the iOS Simulator, double-tapping the spacebar may auto-insert a period (`.`). If Login fails, please check that no accidental periods were added to the username. 
