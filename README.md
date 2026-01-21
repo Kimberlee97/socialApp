@@ -37,6 +37,13 @@ Follow these instructions to run the application locally.
 
 ### Clone the repository:
 
+#### Via Zip File
+Unzip the provided project file and navigate into the directoy:
+```bash
+cd <project-folder-name>
+```
+
+#### Via Git Clone
 ```bash
 git clone <repository-url>
 cd SocialApp
