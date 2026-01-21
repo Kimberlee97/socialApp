@@ -1,3 +1,9 @@
+/**
+ * This screen handles the user registration process.
+ * It validates input constraints (e.g. 4-digit PIN) and coordinates 
+ * with the UserService to create new accounts and setup initial security preferences.
+ */
+
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -14,38 +20,42 @@ import { styles } from './SignUpStyles';
 
 export default function SignUp() {
   const router = useRouter();
-  
   const { setUser } = useAuth(); 
   
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Handles the core registration flow:
+  // 1. Validates that the username is not empty and PIN is exactly 4 digits.
+  // 2. Checks against the database (via Service) to ensure username uniqueness.
+  // 3. Creates the user and prompts for optional Biometric setup.
   const handleSignUp = async () => {
-    // 1. Validation
-    if (!username || pin.length !== 4) {
+    // UI Validation: We check trim() here just to ensure we don't send 
+    // a blank "   " string to the backend.
+    if (!username.trim() || pin.length !== 4) {
       return Alert.alert("Missing Info", "Please enter a username and a 4-digit PIN.");
     }
 
     setLoading(true);
 
     try {
-      // 2. Check if Username is Taken (Read)
+      // Check Uniqueness: The Service layer will handle the precise data comparison.
       const exists = await UserService.usernameExists(username);
       if (exists) {
         setLoading(false);
         return Alert.alert("Taken", "That username is already used. Try another.");
       }
 
-      // 3. Create the User (Write)
+      // Create Account: UserService sanitizes the input before insertion.
       await UserService.createUser(username, pin);
       
-      // 4. Biometric Setup (Optional)
+      // Optional: Setup Face ID immediately after creation for better UX
       await handleBiometricSetup();
 
-      // 5. DIRECT LOGIN (Optimized)
+      // Auto-Login: Updates the global session so the user doesn't have to sign in again.
       console.log("User created, logging in directly...");
-      setUser({ username }); 
+      setUser({ username: username.trim() }); 
       
     } catch (error) {
       console.error("Signup Error:", error);
@@ -54,6 +64,8 @@ export default function SignUp() {
     }
   };
 
+  // Prompts the user to enable biometric login (Face ID / Touch ID).
+  // This is a UI-only flow that verifies hardware support before asking permission.
   const handleBiometricSetup = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();

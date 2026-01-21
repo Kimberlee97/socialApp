@@ -1,3 +1,9 @@
+/**
+ * This screen provides the form interface for creating new posts.
+ * It handles input validation, device image selection (with cropping),
+ * and coordinates the saving of both image assets and post metadata to the database.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,9 +22,11 @@ export default function CreatePostScreen() {
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
 
+  // Launches the device's native image library with editing (cropping) enabled.
+  // Updates the state with the temporary URI if an image is selected.
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.7,
@@ -26,6 +34,10 @@ export default function CreatePostScreen() {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
+  // Handles form submission with the following steps:
+  // 1. Validates required fields (Title/Author).
+  // 2. Moves the temporary image file to permanent storage via ImageService.
+  // 3. Inserts the post record into SQLite and navigates back to the Feed.
   const handleCreate = async () => {
     if (!title.trim() || !author.trim()) return Alert.alert("Required", "Please add a title and author.");
 
@@ -49,6 +61,8 @@ export default function CreatePostScreen() {
     }
   };
 
+  // Renders the form UI within a safe area to handle device notches.
+  // Includes a header with a submission button and a scrollable form for inputs.
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
@@ -96,7 +110,7 @@ export default function CreatePostScreen() {
             multiline 
           />
 
-          {/* 4. Image Picker (Moved to Bottom) */}
+          {/* 4. Image Picker */}
           <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.imagePreview} />

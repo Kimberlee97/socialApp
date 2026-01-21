@@ -1,9 +1,17 @@
+/**
+ * This file manages the global authentication state for the application.
+ * It handles database initialization, session restoration, and acts as a 
+ * "Route Guard" to automatically redirect users between Login and the App 
+ * based on their authentication status.
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { AuthService } from '../services/AuthService';
 import { initDB } from '../database/init';
 
+// Define the shape of the Authentication Context
 type AuthContextType = {
   user: any;
   isLoading: boolean;
@@ -12,6 +20,7 @@ type AuthContextType = {
   setUser: (user: any) => void; 
 };
 
+// Create the Context with default/empty values
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
@@ -20,12 +29,14 @@ const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
 });
 
+// Main Provider Component to wrap the application
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
 
+  // App Initialization: Runs once on startup to init DB and restore session
   useEffect(() => {
     const prepareApp = async () => {
       try {
@@ -42,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     prepareApp();
   }, []);
 
+  // Route Protection: Redirects user based on login status
   useEffect(() => {
     if (isLoading) return;
 
@@ -54,6 +66,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, isLoading, segments]);
 
+  // Public Auth Actions (Login/Logout)
   const login = async (username: string, pin: string) => {
     const userData = await AuthService.login(username, pin);
     if (userData) {
@@ -68,6 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
   };
 
+  // Render Loading Spinner while initializing
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

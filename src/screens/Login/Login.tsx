@@ -1,3 +1,9 @@
+/**
+ * This screen handles user authentication via PIN or Biometrics.
+ * It delegates data validation and database checks to the UserService,
+ * focusing solely on user interaction and feedback.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
@@ -10,18 +16,21 @@ import {
   View
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { AuthService } from '../../services/AuthService';
 import { UserService } from '../../services/UserService';
 import { styles } from './LoginStyles'; 
 
 export default function Login() {
   const router = useRouter();
-  const { login, setUser } = useAuth(); 
+  const { login } = useAuth(); 
 
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. PIN Login Handler
+  // Handles PIN login logic.
+  // We pass the raw username to the Auth/User Service, trusting the 
+  // Business Logic Layer to handle trimming and validation.
   const handleLogin = async () => {
     if (!username || !pin) {
       return Alert.alert("Missing Info", "Please enter both Username and PIN");
@@ -29,6 +38,7 @@ export default function Login() {
 
     setIsLoading(true);
     try {
+      // Logic Note: UserService.login() will trim the name automatically.
       const success = await login(username, pin);
       
       if (!success) {
@@ -43,22 +53,45 @@ export default function Login() {
     }
   };
 
-  // 2. Biometric Login Handler
+  // Handles Biometric (Face ID) login logic.
+  // 1. Determines the target user (Input or previous session).
+  // 2. Verifies eligibility via UserService (isLocalUser).
+  // 3. Authenticates via hardware and performs auto-login.
   const handleBiometricLogin = async () => {
-    if (!username) {
-      return Alert.alert("Username Required", "Please enter your username first so we know who to look for.");
-    }
-
-    const localExists = await UserService.isLocalUser(username);
-    
-    if (!localExists) {
-      return Alert.alert(
-        "Account Not Found", 
-        "This username has not been created on this device yet."
-      );
-    }
-
     try {
+      let targetUser = username; 
+      const savedCreds = await AuthService.getBiometricCredentials();
+
+      if (!targetUser && savedCreds?.username) {
+        targetUser = savedCreds.username;
+      }
+
+      if (!targetUser) {
+        return Alert.alert("Username Required", "Please enter your username first.");
+      }
+
+      // Check Local Status: We pass raw input; UserService trims it internally.
+      const isLocal = await UserService.isLocalUser(targetUser);
+      
+      if (!isLocal) {
+        return Alert.alert(
+          "Not Supported", 
+          `Face ID cannot be used for "${targetUser}" because it is not a local account created on this device.`
+        );
+      }
+
+      // Credential Match: We trim here locally to ensure the UI input ("John ") 
+      // matches the saved credential ("John") before authorizing.
+      const cleanTarget = targetUser.trim();
+
+      if (!savedCreds || savedCreds.username.toLowerCase() !== cleanTarget.toLowerCase()) {
+         return Alert.alert(
+            "Setup Required", 
+            `Please log in with PIN manually once for "${cleanTarget}" to enable Face ID.`
+          );
+      }
+
+      // Hardware Authentication Check
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
@@ -66,18 +99,24 @@ export default function Login() {
         return Alert.alert("Not Available", "Face ID/Touch ID is not set up on this device.");
       }
 
+      // Perform Biometric Scan
       const auth = await LocalAuthentication.authenticateAsync({
-        promptMessage: `Log in as ${username}`,
+        promptMessage: `Log in as ${cleanTarget}`,
         disableDeviceFallback: false, 
         cancelLabel: 'Cancel',
       });
 
+      // On success, auto-login using the saved credentials
       if (auth.success) {
-        setUser({ username, pin: 'BIO_VERIFIED' }); 
+        setIsLoading(true);
+        await login(savedCreds.username, savedCreds.pin); 
+        setIsLoading(false);
       }
+
     } catch (error) {
       console.error("Biometric Error:", error);
       Alert.alert("Error", "An error occurred during biometric login.");
+      setIsLoading(false);
     }
   };
 
