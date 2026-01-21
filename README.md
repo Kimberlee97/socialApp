@@ -35,7 +35,7 @@ To run this project, you need the following installed on your development machin
 
 Follow these instructions to run the application locally.
 
-### Clone the repository:
+### Open the repository:
 
 #### Via Zip File
 Unzip the provided project file and navigate into the directory:
@@ -46,7 +46,7 @@ cd <project-folder-name>
 #### Via Git Clone
 ```bash
 git clone <repository-url>
-cd SocialApp
+cd socialApp
 ```
 
 ### Install dependencies:
