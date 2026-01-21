@@ -38,7 +38,7 @@ Follow these instructions to run the application locally.
 ### Clone the repository:
 
 #### Via Zip File
-Unzip the provided project file and navigate into the directoy:
+Unzip the provided project file and navigate into the directory:
 ```bash
 cd <project-folder-name>
 ```
