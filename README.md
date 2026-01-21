@@ -148,3 +148,6 @@ The application uses a "Local-First" architecture, running entirely on the user'
 ### 2. Modular Architecture for Growth
 
 The codebase utilizes the Repository Pattern to decouple data access from the UI. While the current implementation uses SQLite for offline capability, this abstraction layer allows for a future migration to a cloud-based backend (e.g., REST API or Firebase) without requiring changes to the frontend or business logic layers.
+
+### Known Issues
+* **iOS Smart Punctuation:** On the iOS Simulator, double-tapping the spacebar may auto-insert a period (`.`). If Login fails, please check that no accidental periods were added to the username.
