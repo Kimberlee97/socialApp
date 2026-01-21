@@ -21,7 +21,6 @@ export const AuthService = {
     const user = await UserService.login(username, pin);
     if (user) {
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(user));
-
       await SecureStore.setItemAsync(BIOMETRIC_KEY, JSON.stringify({ username, pin }));
       
       return user;
